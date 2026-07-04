@@ -1,10 +1,11 @@
 const EMPTY = 0, FILLED = 1, CROSS = 2;
 const STORAGE_THEME = 'nonogram-theme';
-const STORAGE_LEVEL = 'nonogram-level-';
+const STORAGE_GLOBAL = 'nonogram-level-';
+const STORAGE_SIZE = 'nonogram-selected-size';
+const WIN_DELAY_MS = 2800;
 
+let globalLevelIndex = 0;
 let size = 5;
-let subStars = 1;
-let levelIndex = 0;
 let currentLevel = null;
 let solution = [];
 let colorMap = [];
@@ -20,6 +21,7 @@ let paintMode = 'fill';
 let isDragging = false;
 let dragAction = null;
 let isTouchDevice = false;
+let advanceTimer = null;
 
 const board = document.getElementById('board');
 const timerEl = document.getElementById('timer');
@@ -36,9 +38,17 @@ const winPreview = document.getElementById('winPreview');
 const winTitle = document.getElementById('winTitle');
 const winSubtitle = document.getElementById('winSubtitle');
 const mobileToolbar = document.getElementById('mobileToolbar');
-const hintDesktop = document.getElementById('hintDesktop');
-const hintMobile = document.getElementById('hintMobile');
-const gameWrapper = document.getElementById('gameWrapper');
+const appHeader = document.getElementById('appHeader');
+const boardArea = document.getElementById('boardArea');
+const gameViewport = document.getElementById('gameViewport');
+const gameScaler = document.getElementById('gameScaler');
+const zoomLabel = document.getElementById('zoomLabel');
+
+let boardZoom = 1;
+let baseCellSize = 20;
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 2.5;
+const ZOOM_STEP = 0.25;
 
 function calcClues(line) {
   const clues = [];
@@ -52,16 +62,26 @@ function calcClues(line) {
 }
 
 function storageKey() {
-  return `${STORAGE_LEVEL}${size}-${subStars}`;
+  return `${STORAGE_GLOBAL}${size}`;
+}
+
+function loadLevelIndexForCurrentSize() {
+  const chainLen = getLevelChain(size).length;
+  const saved = localStorage.getItem(storageKey());
+  globalLevelIndex = saved !== null ? parseInt(saved, 10) : 0;
+  if (Number.isNaN(globalLevelIndex) || globalLevelIndex < 0) globalLevelIndex = 0;
+  if (globalLevelIndex >= chainLen) globalLevelIndex = 0;
 }
 
 function loadProgress() {
-  const saved = localStorage.getItem(storageKey());
-  levelIndex = saved !== null ? parseInt(saved, 10) : 0;
+  const savedSize = localStorage.getItem(STORAGE_SIZE);
+  if (savedSize) size = +savedSize;
+  loadLevelIndexForCurrentSize();
 }
 
 function saveProgress() {
-  localStorage.setItem(storageKey(), String(levelIndex));
+  localStorage.setItem(storageKey(), String(globalLevelIndex));
+  localStorage.setItem(STORAGE_SIZE, String(size));
 }
 
 function initTheme() {
@@ -100,43 +120,84 @@ function updateLevelUI() {
   if (!currentLevel) return;
   levelEmojiEl.textContent = currentLevel.emoji;
   levelNameEl.textContent = currentLevel.name;
-  levelCounterEl.textContent = `${currentLevel.index + 1} / ${currentLevel.total}`;
+  levelCounterEl.textContent = `${currentLevel.globalIndex + 1} / ${currentLevel.globalTotal}`;
   levelStarsEl.textContent = currentLevel.starsText;
   tierBadgeEl.textContent = `${currentLevel.tier.label} · ${currentLevel.subTier.label}`;
   tierBadgeEl.className = `tier-badge sub-${currentLevel.subTier.color}`;
-  const pct = ((currentLevel.index + 1) / currentLevel.total) * 100;
+  const pct = ((currentLevel.globalIndex + 1) / currentLevel.globalTotal) * 100;
   levelProgressEl.style.width = pct + '%';
-  updateDifficultyButtons();
+  updateSizeButtons();
 }
 
-function updateDifficultyButtons() {
-  document.querySelectorAll('.diff-btn').forEach(btn => {
-    const active = +btn.dataset.size === size && +btn.dataset.stars === subStars;
-    btn.classList.toggle('active', active);
+function updateSizeButtons() {
+  document.querySelectorAll('#sizeSelect button').forEach(btn => {
+    btn.classList.toggle('active', +btn.dataset.size === size);
   });
 }
 
-function fitBoardToScreen() {
-  const maxRowClueLen = Math.max(...rowClues.map(c => c.length));
-  const maxColClueLen = Math.max(...colClues.map(c => c.length));
-  const clueW = maxRowClueLen * 11 + 24;
-  const clueH = maxColClueLen * 14 + 16;
-  const pad = isTouchDevice ? 16 : 32;
-  const headerH = isTouchDevice ? 360 : 400;
-  const toolbarH = isTouchDevice ? 72 : 0;
-  const availW = window.innerWidth - pad;
-  const availH = window.innerHeight - headerH - toolbarH;
-
-  const cellW = Math.floor((availW - clueW) / size);
-  const cellH = Math.floor((availH - clueH) / size);
-  const cell = Math.max(isTouchDevice ? 28 : 24, Math.min(isTouchDevice ? 46 : 48, cellW, cellH));
-
-  document.documentElement.style.setProperty('--cell-size', cell + 'px');
+function getBottomChromeHeight() {
+  if (!mobileToolbar) return 0;
+  const style = getComputedStyle(mobileToolbar);
+  return style.display !== 'none' ? mobileToolbar.getBoundingClientRect().height : 0;
 }
 
-function initGame(keepLevel = true) {
-  if (!keepLevel) levelIndex = 0;
-  else loadProgress();
+function getAvailableBoardSize() {
+  const pad = 12;
+  const headerH = appHeader ? appHeader.getBoundingClientRect().height : 0;
+  const bottomH = getBottomChromeHeight();
+  let hintH = 0;
+  document.querySelectorAll('.hint-bar').forEach(el => {
+    if (getComputedStyle(el).display !== 'none') hintH = Math.max(hintH, el.offsetHeight);
+  });
+
+  return {
+    width: window.innerWidth - pad * 2,
+    height: window.innerHeight - headerH - bottomH - hintH - pad,
+  };
+}
+
+function applyZoom() {
+  const cell = Math.max(8, Math.round(baseCellSize * boardZoom));
+  document.documentElement.style.setProperty('--cell-size', cell + 'px');
+  gameViewport.classList.toggle('zoomed', boardZoom > 1.001);
+  if (zoomLabel) zoomLabel.textContent = Math.round(boardZoom * 100) + '%';
+  document.getElementById('zoomOut').disabled = boardZoom <= ZOOM_MIN;
+  document.getElementById('zoomIn').disabled = boardZoom >= ZOOM_MAX;
+}
+
+function setZoom(value) {
+  boardZoom = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value)) * 100) / 100;
+  applyZoom();
+}
+
+function resetZoom() {
+  boardZoom = 1;
+  applyZoom();
+  gameViewport.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+}
+
+function fitBoardToScreen() {
+  if (!rowClues.length) return;
+
+  const maxRowClueLen = Math.max(...rowClues.map(c => c.length));
+  const maxColClueLen = Math.max(...colClues.map(c => c.length));
+  const clueColW = maxRowClueLen * 9 + 18;
+  const clueRowH = maxColClueLen * 11 + 10;
+
+  const { width: availW, height: availH } = getAvailableBoardSize();
+  const safeH = Math.max(80, availH);
+  const safeW = Math.max(80, availW);
+
+  const cellW = (safeW - clueColW) / size;
+  const cellH = (safeH - clueRowH) / size;
+  const cell = Math.max(8, Math.floor(Math.min(cellW, cellH)));
+  baseCellSize = cell;
+  applyZoom();
+}
+
+function initGame(fromStorage = true) {
+  clearTimeout(advanceTimer);
+  if (fromStorage) loadProgress();
 
   stopTimer();
   seconds = 0;
@@ -148,8 +209,10 @@ function initGame(keepLevel = true) {
   errorsEl.textContent = '0';
   winOverlay.classList.remove('show');
   board.classList.remove('won');
+  resetZoom();
 
-  currentLevel = getLevel(size, subStars, levelIndex);
+  currentLevel = getLevelByGlobalIndex(size, globalLevelIndex);
+  size = currentLevel.size;
   solution = currentLevel.grid.map(r => [...r]);
   colorMap = currentLevel.colors.map(r => [...r]);
   rowClues = currentLevel.rowClues;
@@ -222,6 +285,7 @@ function render() {
   }
 
   updateClueHighlights();
+  requestAnimationFrame(() => fitBoardToScreen());
 }
 
 function bindCellEvents(cell, r, c) {
@@ -327,28 +391,73 @@ function checkCellCorrectness(r, c, state) {
   return true;
 }
 
-function getPlayerLineClues(isRow, index) {
-  const line = isRow
+function getFilledLine(isRow, index) {
+  return isRow
     ? player[index].map(v => v === FILLED ? 1 : 0)
     : player.map(row => row[index] === FILLED ? 1 : 0);
-  return calcClues(line);
 }
 
-function cluesMatch(playerClues, solutionClues) {
-  const p = playerClues.filter(n => n !== 0);
-  const s = solutionClues.filter(n => n !== 0);
-  if (p.length !== s.length) return false;
-  return p.every((n, i) => n === s[i]);
+function getSolutionLine(isRow, index) {
+  return isRow ? solution[index] : solution.map(row => row[index]);
+}
+
+function computeClueStates(filledLine, solutionLine, solutionClues) {
+  for (let i = 0; i < filledLine.length; i++) {
+    if (filledLine[i] && !solutionLine[i]) {
+      return solutionClues.map(() => false);
+    }
+  }
+
+  if (solutionClues.length === 1 && solutionClues[0] === 0) {
+    return [filledLine.every(c => !c)];
+  }
+
+  const groups = solutionClues.filter(x => x > 0);
+  const solGroups = [];
+  let pos = 0;
+
+  for (const len of groups) {
+    while (pos < solutionLine.length && !solutionLine[pos]) pos++;
+    solGroups.push({ start: pos, len });
+    pos += len;
+  }
+
+  const result = [];
+  let gi = 0;
+  for (const clue of solutionClues) {
+    if (clue === 0) {
+      result.push(filledLine.every(c => !c));
+      continue;
+    }
+    const { start, len } = solGroups[gi++];
+    result.push(filledLine.slice(start, start + len).every(c => c === 1));
+  }
+  return result;
 }
 
 function updateClueHighlights() {
   document.querySelectorAll('.clue-row').forEach(el => {
     const idx = +el.dataset.index;
-    el.classList.toggle('done', cluesMatch(getPlayerLineClues(true, idx), rowClues[idx]));
+    const states = computeClueStates(
+      getFilledLine(true, idx),
+      getSolutionLine(true, idx),
+      rowClues[idx]
+    );
+    el.querySelectorAll('span').forEach((span, i) => {
+      span.classList.toggle('done', !!states[i]);
+    });
   });
+
   document.querySelectorAll('.clue-col').forEach(el => {
     const idx = +el.dataset.index;
-    el.classList.toggle('done', cluesMatch(getPlayerLineClues(false, idx), colClues[idx]));
+    const states = computeClueStates(
+      getFilledLine(false, idx),
+      getSolutionLine(false, idx),
+      colClues[idx]
+    );
+    el.querySelectorAll('span').forEach((span, i) => {
+      span.classList.toggle('done', !!states[i]);
+    });
   });
 }
 
@@ -425,37 +534,39 @@ function buildWinPreview() {
   }
 }
 
+function advanceToNextLevel() {
+  winOverlay.classList.remove('show');
+
+  const chainLen = getLevelChain(size).length;
+  const isLast = globalLevelIndex >= chainLen - 1;
+  if (isLast) {
+    globalLevelIndex = 0;
+  } else {
+    globalLevelIndex++;
+  }
+  saveProgress();
+  initGame(false);
+}
+
 function win() {
   won = true;
   stopTimer();
 
-  const isLast = levelIndex >= currentLevel.total - 1;
+  const isLast = globalLevelIndex >= currentLevel.globalTotal - 1;
   document.getElementById('winTime').textContent = formatTime(seconds);
   document.getElementById('winErrors').textContent = errors;
   winTitle.textContent = `${currentLevel.emoji} ${currentLevel.name}!`;
   winSubtitle.textContent = isLast
-    ? `Все ${currentLevel.total} уровней (${currentLevel.tier.label}, ${currentLevel.subTier.label}) пройдены!`
-    : `${currentLevel.tier.label} · ${currentLevel.subTier.label} · ${currentLevel.starsText} · ${currentLevel.index + 1}/${currentLevel.total}`;
-
-  const nextBtn = document.getElementById('nextLevel');
-  nextBtn.textContent = isLast ? 'Сначала' : 'Следующий уровень';
-  nextBtn.dataset.isLast = isLast ? '1' : '0';
+    ? 'Все уровни пройдены! Начинаем сначала…'
+    : `Следующий уровень через несколько секунд… (${currentLevel.globalIndex + 2} / ${currentLevel.globalTotal})`;
 
   buildWinPreview();
   revealColors();
   winOverlay.classList.add('show');
   spawnConfetti();
-}
 
-function nextLevel() {
-  const nextBtn = document.getElementById('nextLevel');
-  if (nextBtn.dataset.isLast === '1') {
-    levelIndex = 0;
-  } else {
-    levelIndex = Math.min(levelIndex + 1, currentLevel.total - 1);
-  }
-  saveProgress();
-  initGame(true);
+  clearTimeout(advanceTimer);
+  advanceTimer = setTimeout(advanceToNextLevel, WIN_DELAY_MS);
 }
 
 function spawnConfetti() {
@@ -473,17 +584,25 @@ function spawnConfetti() {
   }
 }
 
-document.getElementById('newGame').addEventListener('click', () => initGame(true));
-document.getElementById('playAgain').addEventListener('click', () => initGame(true));
-document.getElementById('nextLevel').addEventListener('click', nextLevel);
 themeToggle.addEventListener('click', toggleTheme);
 
-document.getElementById('difficultyPanel').addEventListener('click', e => {
-  const btn = e.target.closest('.diff-btn');
-  if (!btn) return;
+document.getElementById('zoomIn').addEventListener('click', () => setZoom(boardZoom + ZOOM_STEP));
+document.getElementById('zoomOut').addEventListener('click', () => setZoom(boardZoom - ZOOM_STEP));
+document.getElementById('zoomReset').addEventListener('click', resetZoom);
+
+gameViewport.addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  setZoom(boardZoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+}, { passive: false });
+
+document.getElementById('sizeSelect').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-size]');
+  if (!btn || +btn.dataset.size === size) return;
   size = +btn.dataset.size;
-  subStars = +btn.dataset.stars;
-  initGame(true);
+  localStorage.setItem(STORAGE_SIZE, String(size));
+  loadLevelIndexForCurrentSize();
+  initGame(false);
 });
 
 mobileToolbar.addEventListener('click', e => {
@@ -503,11 +622,8 @@ window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     detectTouch();
-    if (currentLevel) {
-      fitBoardToScreen();
-      render();
-    }
-  }, 150);
+    if (currentLevel) fitBoardToScreen();
+  }, 100);
 });
 
 board.addEventListener('touchmove', e => {
@@ -520,6 +636,29 @@ board.addEventListener('touchmove', e => {
 }, { passive: true });
 
 document.addEventListener('touchend', () => { isDragging = false; });
+
+function touchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+
+gameViewport.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinchStartDist = touchDistance(e.touches);
+    pinchStartZoom = boardZoom;
+  }
+}, { passive: true });
+
+gameViewport.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchStartDist > 0) {
+    e.preventDefault();
+    setZoom(pinchStartZoom * (touchDistance(e.touches) / pinchStartDist));
+  }
+}, { passive: false });
 
 detectTouch();
 initTheme();

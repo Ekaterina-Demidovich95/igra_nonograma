@@ -260,3 +260,38 @@ function getDifficultyScore(grid, rowClues, colClues) {
 function starsToText(stars) {
   return '★'.repeat(stars) + '☆'.repeat(3 - stars);
 }
+
+function buildLevelChainForSize(gridSize) {
+  const chain = [];
+  for (const stars of [1, 2, 3]) {
+    getLevelList(gridSize, stars).forEach((_, localIndex) => {
+      chain.push({ size: gridSize, stars, localIndex });
+    });
+  }
+  return chain;
+}
+
+const LEVEL_CHAINS = {
+  5: buildLevelChainForSize(5),
+  10: buildLevelChainForSize(10),
+  15: buildLevelChainForSize(15),
+};
+
+function getLevelChain(gridSize) {
+  return LEVEL_CHAINS[gridSize] || [];
+}
+
+function getLevelByGlobalIndex(gridSize, globalIndex) {
+  const chain = getLevelChain(gridSize);
+  if (!chain.length) return null;
+  const idx = Math.min(Math.max(0, globalIndex), chain.length - 1);
+  const { size, stars, localIndex } = chain[idx];
+  const level = getLevel(size, stars, localIndex);
+  if (!level) return null;
+  return {
+    ...level,
+    globalIndex: idx,
+    globalTotal: chain.length,
+    size,
+  };
+}

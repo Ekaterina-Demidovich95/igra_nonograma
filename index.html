@@ -13,78 +13,63 @@
 </head>
 <body>
   <div class="app">
-    <div class="top-bar">
-      <h1>Нонограммы</h1>
-      <button class="theme-toggle" id="themeToggle" title="Сменить тему" aria-label="Сменить тему">🌙</button>
-    </div>
+    <header class="app-header" id="appHeader">
+      <div class="top-bar">
+        <h1>Нонограммы</h1>
+        <div class="top-actions">
+          <div class="stats-inline">
+            <span class="stat-inline" title="Время"><span id="timer">00:00</span></span>
+            <span class="stat-sep">·</span>
+            <span class="stat-inline errors" title="Ошибки"><span id="errors">0</span> ош.</span>
+          </div>
+          <button class="theme-toggle" id="themeToggle" title="Сменить тему" aria-label="Сменить тему">🌙</button>
+        </div>
+      </div>
 
-    <div class="level-card">
-      <div class="level-header">
-        <div class="level-title">
-          <span class="level-emoji" id="levelEmoji">❤️</span>
-          <div>
-            <span class="level-name" id="levelName">Сердце</span>
-            <span class="level-stars" id="levelStars">★☆☆</span>
+      <div class="level-card">
+        <div class="level-header">
+          <div class="level-title">
+            <span class="level-emoji" id="levelEmoji">❤️</span>
+            <div>
+              <span class="level-name" id="levelName">Сердце</span>
+              <span class="level-stars" id="levelStars">★☆☆</span>
+            </div>
+          </div>
+          <div class="level-meta">
+            <span class="tier-badge sub-easy" id="tierBadge">5×5 · Лёгкий</span>
+            <span class="level-counter" id="levelCounter">1 / 14</span>
           </div>
         </div>
-        <div class="level-meta">
-          <span class="tier-badge sub-easy" id="tierBadge">5×5 · Лёгкий</span>
-          <span class="level-counter" id="levelCounter">1 / 12</span>
+        <div class="level-progress">
+          <div class="level-progress-fill" id="levelProgress"></div>
         </div>
       </div>
-      <div class="level-progress">
-        <div class="level-progress-fill" id="levelProgress"></div>
-      </div>
-    </div>
 
-    <div class="stats-row">
-      <div class="stat-chip">
-        <div class="stat-label">Время</div>
-        <div class="stat-value" id="timer">00:00</div>
-      </div>
-      <div class="stat-chip">
-        <div class="stat-label">Ошибки</div>
-        <div class="stat-value errors" id="errors">0</div>
-      </div>
-    </div>
-
-    <div class="controls">
-      <button class="primary" id="newGame">Заново</button>
-    </div>
-
-    <div class="difficulty-panel" id="difficultyPanel">
-      <div class="diff-row">
-        <span class="diff-row-label">5×5</span>
-        <div class="diff-row-btns">
-          <button class="diff-btn sub-easy active" data-size="5" data-stars="1"><span class="diff-stars">★</span><span class="diff-sub">Лёгкий</span></button>
-          <button class="diff-btn sub-medium" data-size="5" data-stars="2"><span class="diff-stars">★★</span><span class="diff-sub">Средний</span></button>
-          <button class="diff-btn sub-hard" data-size="5" data-stars="3"><span class="diff-stars">★★★</span><span class="diff-sub">Сложный</span></button>
+      <div class="controls-row">
+        <div class="size-select" id="sizeSelect">
+          <button data-size="5" class="active">5×5</button>
+          <button data-size="10">10×10</button>
+          <button data-size="15">15×15</button>
+        </div>
+        <div class="zoom-bar" id="zoomBar">
+          <button type="button" id="zoomOut" title="Уменьшить" aria-label="Уменьшить">−</button>
+          <span id="zoomLabel">100%</span>
+          <button type="button" id="zoomIn" title="Увеличить" aria-label="Увеличить">+</button>
+          <button type="button" id="zoomReset" title="Сбросить масштаб" aria-label="Сбросить">⊡</button>
         </div>
       </div>
-      <div class="diff-row">
-        <span class="diff-row-label">10×10</span>
-        <div class="diff-row-btns">
-          <button class="diff-btn sub-easy" data-size="10" data-stars="1"><span class="diff-stars">★</span><span class="diff-sub">Лёгкий</span></button>
-          <button class="diff-btn sub-medium" data-size="10" data-stars="2"><span class="diff-stars">★★</span><span class="diff-sub">Средний</span></button>
-          <button class="diff-btn sub-hard" data-size="10" data-stars="3"><span class="diff-stars">★★★</span><span class="diff-sub">Сложный</span></button>
-        </div>
-      </div>
-      <div class="diff-row">
-        <span class="diff-row-label">15×15</span>
-        <div class="diff-row-btns">
-          <button class="diff-btn sub-easy" data-size="15" data-stars="1"><span class="diff-stars">★</span><span class="diff-sub">Лёгкий</span></button>
-          <button class="diff-btn sub-medium" data-size="15" data-stars="2"><span class="diff-stars">★★</span><span class="diff-sub">Средний</span></button>
-          <button class="diff-btn sub-hard" data-size="15" data-stars="3"><span class="diff-stars">★★★</span><span class="diff-sub">Сложный</span></button>
+    </header>
+
+    <div class="board-area" id="boardArea">
+      <div class="game-viewport" id="gameViewport">
+        <div class="game-scaler" id="gameScaler">
+          <div class="nonogram" id="board"></div>
         </div>
       </div>
     </div>
 
-    <p class="hint-bar hint-desktop" id="hintDesktop">ЛКМ — закрасить · ПКМ — крестик · Перетаскивание — закраска строки</p>
-    <p class="hint-bar hint-mobile" id="hintMobile">Выберите режим внизу · Проведите пальцем для закраски</p>
-
-    <div class="game-wrapper" id="gameWrapper">
-      <div class="nonogram" id="board"></div>
-    </div>
+    <p class="hint-bar hint-desktop">ЛКМ — закрасить · ПКМ — крестик · Колёсико+Ctrl — масштаб</p>
+    <p class="hint-bar hint-mobile">Режим внизу · +/− для увеличения области</p>
   </div>
 
   <div class="mobile-toolbar" id="mobileToolbar">
@@ -112,10 +97,6 @@
           <div class="stat-label">Ошибки</div>
           <div class="stat-value errors" id="winErrors">0</div>
         </div>
-      </div>
-      <div class="win-actions">
-        <button class="primary" id="nextLevel">Следующий уровень</button>
-        <button id="playAgain">Повторить</button>
       </div>
     </div>
   </div>
