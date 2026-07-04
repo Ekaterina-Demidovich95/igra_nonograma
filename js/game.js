@@ -146,9 +146,8 @@ function getAvailableBoardSize() {
   const headerH = appHeader ? appHeader.getBoundingClientRect().height : 0;
   const bottomH = getBottomChromeHeight();
   let hintH = 0;
-  document.querySelectorAll('.hint-bar').forEach(el => {
-    if (getComputedStyle(el).display !== 'none') hintH = Math.max(hintH, el.offsetHeight);
-  });
+  const guide = document.getElementById('gameGuide');
+  if (guide) hintH = guide.offsetHeight + 4;
 
   return {
     width: window.innerWidth - pad * 2,

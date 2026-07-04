@@ -354,16 +354,69 @@ body::before {
   padding: 4px;
 }
 
-.hint-bar {
+.game-guide {
   flex-shrink: 0;
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  text-align: center;
-  margin: 4px 0 0;
-  opacity: 0.85;
+  width: 100%;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 8px 12px;
+  margin-top: 4px;
+  box-shadow: var(--shadow);
 }
 
-.hint-mobile { display: none; }
+.guide-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+  letter-spacing: 0.02em;
+}
+
+.guide-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.67rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.guide-list li {
+  position: relative;
+  padding-left: 12px;
+}
+
+.guide-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.guide-controls {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.64rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.guide-controls strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.guide-mobile { display: none; }
+
+.hint-bar { display: none; }
 
 .game-wrapper { display: none; }
 
@@ -814,8 +867,15 @@ button.primary {
 
   .zoom-bar { justify-content: center; }
 
-  .hint-desktop { display: none; }
-  .hint-mobile { display: block; }
+  .guide-desktop { display: none; }
+  .guide-mobile { display: block; }
+
+  .game-guide {
+    padding: 7px 10px;
+    margin-top: 3px;
+  }
+
+  .guide-list { font-size: 0.62rem; gap: 2px; }
 
   .mobile-toolbar {
     display: flex;
