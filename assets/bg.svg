@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c4d4f0"/>
+      <stop offset="45%" stop-color="#e8d5f2"/>
+      <stop offset="100%" stop-color="#fde8d0"/>
+    </linearGradient>
+    <linearGradient id="mountain1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9bb8d9"/>
+      <stop offset="100%" stop-color="#6b8fc4"/>
+    </linearGradient>
+    <linearGradient id="mountain2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b8a4d4"/>
+      <stop offset="100%" stop-color="#8b7ab8"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8ecf9a"/>
+      <stop offset="100%" stop-color="#5aad6a"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff4c4"/>
+      <stop offset="70%" stop-color="#ffd966"/>
+      <stop offset="100%" stop-color="#ffb347" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+
+  <!-- soft clouds -->
+  <ellipse cx="350" cy="220" rx="180" ry="60" fill="#ffffff" opacity="0.55" filter="url(#blur)"/>
+  <ellipse cx="480" cy="200" rx="140" ry="50" fill="#ffffff" opacity="0.45" filter="url(#blur)"/>
+  <ellipse cx="1400" cy="180" rx="200" ry="65" fill="#ffffff" opacity="0.5" filter="url(#blur)"/>
+  <ellipse cx="1550" cy="210" rx="160" ry="55" fill="#ffffff" opacity="0.4" filter="url(#blur)"/>
+
+  <!-- sun -->
+  <circle cx="1550" cy="200" r="120" fill="url(#sun)" opacity="0.85"/>
+
+  <!-- distant mountains -->
+  <polygon points="0,620 320,380 640,520 960,340 1280,480 1600,300 1920,450 1920,1080 0,1080" fill="url(#mountain1)" opacity="0.7"/>
+  <polygon points="0,700 480,500 800,580 1100,420 1500,550 1920,480 1920,1080 0,1080" fill="url(#mountain2)" opacity="0.65"/>
+
+  <!-- hills -->
+  <ellipse cx="960" cy="920" rx="1100" ry="280" fill="url(#hill)" opacity="0.9"/>
+  <ellipse cx="400" cy="980" rx="600" ry="200" fill="#6ec87a" opacity="0.5"/>
+  <ellipse cx="1500" cy="960" rx="550" ry="190" fill="#7ed492" opacity="0.45"/>
+
+  <!-- flowers dots -->
+  <circle cx="300" cy="850" r="8" fill="#f9a8d4" opacity="0.7"/>
+  <circle cx="450" cy="880" r="6" fill="#fcd34d" opacity="0.7"/>
+  <circle cx="600" cy="840" r="7" fill="#c084fc" opacity="0.6"/>
+  <circle cx="1300" cy="860" r="8" fill="#f9a8d4" opacity="0.7"/>
+  <circle cx="1500" cy="890" r="6" fill="#fcd34d" opacity="0.7"/>
+  <circle cx="1700" cy="850" r="7" fill="#c084fc" opacity="0.6"/>
+</svg>
