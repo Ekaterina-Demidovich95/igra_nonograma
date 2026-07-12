@@ -12,7 +12,47 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="app">
+  <div class="welcome-overlay show" id="welcomeOverlay">
+    <div class="welcome-card">
+      <div class="welcome-hero">
+        <div class="welcome-logo" aria-hidden="true">
+          <span class="welcome-pixel p1"></span>
+          <span class="welcome-pixel p2"></span>
+          <span class="welcome-pixel p3"></span>
+          <span class="welcome-pixel p4"></span>
+          <span class="welcome-pixel p5"></span>
+          <span class="welcome-pixel p6"></span>
+          <span class="welcome-pixel p7"></span>
+          <span class="welcome-pixel p8"></span>
+          <span class="welcome-pixel p9"></span>
+        </div>
+        <h1 class="welcome-title">Нонограммы</h1>
+        <p class="welcome-tagline">Разгадай пиксель-картинку по подсказкам</p>
+      </div>
+
+      <div class="welcome-rules">
+        <h2>Как играть</h2>
+        <ol class="rules-list">
+          <li><strong>Числа слева и сверху</strong> показывают, сколько подряд идущих закрашенных клеток в строке или столбце. Например, «3 1» — сначала три клетки, потом пусто, потом одна.</li>
+          <li><strong>Закрасьте</strong> клетки, которые должны быть частью картинки. <strong>Крестиком</strong> отметьте клетки, где точно пусто — так проще ориентироваться.</li>
+          <li>Между группами закрашенных клеток всегда есть <strong>хотя бы одна пустая</strong> клетка.</li>
+          <li>Когда группа совпала с вашим решением, её цифра становится <strong class="accent-text">синей</strong> — вы на верном пути.</li>
+          <li>Соберите всю картинку — откроется следующий уровень. Выберите размер сетки: 5×5, 10×10 или 15×15.</li>
+        </ol>
+        <div class="rules-controls">
+          <p class="rules-desktop"><strong>На компьютере:</strong> ЛКМ — закрасить · ПКМ — крестик · колёсико над полем — масштаб · перетаскивание — линия</p>
+          <p class="rules-mobile"><strong>На телефоне:</strong> выберите режим внизу · при увеличении включите «Переместить», чтобы двигать поле · два пальца — масштаб</p>
+        </div>
+      </div>
+
+      <div class="welcome-actions">
+        <button type="button" class="welcome-start primary" id="welcomeStart">Начать игру</button>
+        <button type="button" class="welcome-theme" id="welcomeTheme" title="Сменить тему" aria-label="Сменить тему">🌙</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app app-hidden" id="app">
     <header class="app-header" id="appHeader">
       <div class="top-bar">
         <h1>Нонограммы</h1>
@@ -22,6 +62,7 @@
             <span class="stat-sep">·</span>
             <span class="stat-inline errors" title="Ошибки"><span id="errors">0</span> ош.</span>
           </div>
+          <button class="help-toggle" id="helpToggle" title="Правила игры" aria-label="Правила игры">?</button>
           <button class="theme-toggle" id="themeToggle" title="Сменить тему" aria-label="Сменить тему">🌙</button>
         </div>
       </div>
@@ -69,18 +110,16 @@
     </div>
 
     <aside class="game-guide" id="gameGuide">
-      <p class="guide-title">Как играть</p>
+      <p class="guide-title">Подсказка <button type="button" class="guide-help-link" id="guideHelpLink">полные правила</button></p>
       <ul class="guide-list">
-        <li>Числа слева и сверху — сколько подряд клеток закрасить в строке или столбце</li>
-        <li>Закрасьте клетки так, чтобы получилась картинка. Пустые отметьте крестиком</li>
-        <li>Синие цифры — эта группа уже совпала с вашим решением</li>
-        <li>После победы автоматически откроется следующий уровень</li>
+        <li>Цифры = длины групп закрашенных клеток; между группами — минимум 1 пустая</li>
+        <li>Синие цифры — группа уже совпала · после победы — следующий уровень</li>
       </ul>
       <p class="guide-controls guide-desktop">
-        <strong>Управление:</strong> ЛКМ — закрасить · ПКМ — крестик · перетаскивание — линия · Ctrl+колёсико — масштаб
+        <strong>Управление:</strong> ЛКМ закрасить · ПКМ крестик · колёсико — масштаб
       </p>
       <p class="guide-controls guide-mobile">
-        <strong>Управление:</strong> выберите режим внизу · нажмите или проведите по клеткам · +/− — увеличить область
+        <strong>Управление:</strong> режим внизу · при зуме — «Переместить» для прокрутки поля
       </p>
     </aside>
   </div>
@@ -93,6 +132,10 @@
     <button class="tool-btn" data-mode="cross" aria-label="Крестик">
       <span class="tool-icon">✕</span>
       <span class="tool-label">Крестик</span>
+    </button>
+    <button class="tool-btn tool-pan" data-mode="pan" aria-label="Переместить поле">
+      <span class="tool-icon">✋</span>
+      <span class="tool-label">Переместить</span>
     </button>
   </div>
 

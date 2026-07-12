@@ -43,9 +43,21 @@ const boardArea = document.getElementById('boardArea');
 const gameViewport = document.getElementById('gameViewport');
 const gameScaler = document.getElementById('gameScaler');
 const zoomLabel = document.getElementById('zoomLabel');
+const welcomeOverlay = document.getElementById('welcomeOverlay');
+const welcomeStart = document.getElementById('welcomeStart');
+const welcomeTheme = document.getElementById('welcomeTheme');
+const helpToggle = document.getElementById('helpToggle');
+const guideHelpLink = document.getElementById('guideHelpLink');
+const appEl = document.getElementById('app');
 
 let boardZoom = 1;
 let baseCellSize = 20;
+let gameReady = false;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let panScrollLeft = 0;
+let panScrollTop = 0;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.25;
@@ -100,8 +112,14 @@ function toggleTheme() {
 }
 
 function updateThemeIcon(theme) {
-  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-  themeToggle.title = theme === 'dark' ? 'Светлая тема' : 'Тёмная тема';
+  const icon = theme === 'dark' ? '☀️' : '🌙';
+  const title = theme === 'dark' ? 'Светлая тема' : 'Тёмная тема';
+  themeToggle.textContent = icon;
+  themeToggle.title = title;
+  if (welcomeTheme) {
+    welcomeTheme.textContent = icon;
+    welcomeTheme.title = title;
+  }
 }
 
 function detectTouch() {
@@ -110,10 +128,41 @@ function detectTouch() {
 }
 
 function setPaintMode(mode) {
+  if (mode === 'pan' && boardZoom <= 1.001) return;
   paintMode = mode;
   document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
+  updatePanModeUI();
+}
+
+function updatePanModeUI() {
+  const isPan = paintMode === 'pan' && boardZoom > 1.001;
+  gameViewport.classList.toggle('pan-mode', isPan);
+  document.querySelectorAll('.tool-btn[data-mode="pan"]').forEach(btn => {
+    btn.disabled = boardZoom <= 1.001;
+  });
+}
+
+function showWelcome(fromGame = false) {
+  document.body.classList.add('welcome-open');
+  welcomeOverlay.classList.add('show');
+  welcomeStart.textContent = fromGame ? 'Продолжить игру' : 'Начать игру';
+}
+
+function hideWelcome() {
+  document.body.classList.remove('welcome-open');
+  welcomeOverlay.classList.remove('show');
+}
+
+function enterGame() {
+  hideWelcome();
+  appEl.classList.remove('app-hidden');
+
+  if (!gameReady) {
+    gameReady = true;
+    initGame(true);
+  }
 }
 
 function updateLevelUI() {
@@ -162,6 +211,14 @@ function applyZoom() {
   if (zoomLabel) zoomLabel.textContent = Math.round(boardZoom * 100) + '%';
   document.getElementById('zoomOut').disabled = boardZoom <= ZOOM_MIN;
   document.getElementById('zoomIn').disabled = boardZoom >= ZOOM_MAX;
+
+  if (boardZoom <= 1.001 && paintMode === 'pan') {
+    setPaintMode('fill');
+  } else if (isTouchDevice && boardZoom > 1.001 && paintMode !== 'pan') {
+    setPaintMode('pan');
+  }
+
+  updatePanModeUI();
 }
 
 function setZoom(value) {
@@ -294,7 +351,7 @@ function bindCellEvents(cell, r, c) {
   });
 
   cell.addEventListener('mousedown', e => {
-    if (e.button === 2) return;
+    if (paintMode === 'pan' || e.button === 2) return;
     e.preventDefault();
     isDragging = true;
     dragAction = isTouchDevice ? paintMode : 'fill';
@@ -302,17 +359,19 @@ function bindCellEvents(cell, r, c) {
   });
 
   cell.addEventListener('mouseenter', () => {
+    if (paintMode === 'pan') return;
     if (isDragging && !isTouchDevice) applyAction(r, c, dragAction, true);
   });
 
   cell.addEventListener('touchstart', e => {
+    if (paintMode === 'pan') return;
     e.preventDefault();
     isDragging = true;
     applyAction(r, c, paintMode);
   }, { passive: false });
 
   cell.addEventListener('touchmove', e => {
-    if (!isDragging) return;
+    if (paintMode === 'pan' || !isDragging) return;
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
     if (target && target.classList.contains('cell')) {
@@ -321,7 +380,7 @@ function bindCellEvents(cell, r, c) {
   }, { passive: true });
 
   cell.addEventListener('touchend', () => {
-    isDragging = false;
+    if (paintMode !== 'pan') isDragging = false;
   });
 }
 
@@ -584,16 +643,35 @@ function spawnConfetti() {
 }
 
 themeToggle.addEventListener('click', toggleTheme);
+welcomeTheme.addEventListener('click', toggleTheme);
+welcomeStart.addEventListener('click', enterGame);
+helpToggle.addEventListener('click', () => showWelcome(true));
+guideHelpLink.addEventListener('click', () => showWelcome(true));
 
 document.getElementById('zoomIn').addEventListener('click', () => setZoom(boardZoom + ZOOM_STEP));
 document.getElementById('zoomOut').addEventListener('click', () => setZoom(boardZoom - ZOOM_STEP));
 document.getElementById('zoomReset').addEventListener('click', resetZoom);
 
-gameViewport.addEventListener('wheel', e => {
-  if (!e.ctrlKey && !e.metaKey) return;
+function handleViewportWheel(e) {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    setZoom(boardZoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+    return;
+  }
+
+  if (boardZoom > 1.001) {
+    gameViewport.scrollTop += e.deltaY;
+    gameViewport.scrollLeft += e.deltaX;
+    e.preventDefault();
+    return;
+  }
+
   e.preventDefault();
   setZoom(boardZoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
-}, { passive: false });
+}
+
+gameViewport.addEventListener('wheel', handleViewportWheel, { passive: false });
+boardArea.addEventListener('wheel', handleViewportWheel, { passive: false });
 
 document.getElementById('sizeSelect').addEventListener('click', e => {
   const btn = e.target.closest('button[data-size]');
@@ -606,11 +684,13 @@ document.getElementById('sizeSelect').addEventListener('click', e => {
 
 mobileToolbar.addEventListener('click', e => {
   const btn = e.target.closest('.tool-btn');
-  if (btn) setPaintMode(btn.dataset.mode);
+  if (btn && !btn.disabled) setPaintMode(btn.dataset.mode);
 });
 
-document.addEventListener('mouseup', () => { isDragging = false; });
-document.addEventListener('mouseleave', () => { isDragging = false; });
+document.addEventListener('mouseleave', () => {
+  endPan();
+  isDragging = false;
+});
 
 document.addEventListener('contextmenu', e => {
   if (e.target.closest('.cell')) e.preventDefault();
@@ -626,7 +706,7 @@ window.addEventListener('resize', () => {
 });
 
 board.addEventListener('touchmove', e => {
-  if (!isDragging) return;
+  if (paintMode === 'pan' || !isDragging) return;
   const touch = e.touches[0];
   const target = document.elementFromPoint(touch.clientX, touch.clientY);
   if (target && target.classList.contains('cell')) {
@@ -634,7 +714,76 @@ board.addEventListener('touchmove', e => {
   }
 }, { passive: true });
 
-document.addEventListener('touchend', () => { isDragging = false; });
+document.addEventListener('touchend', () => {
+  if (!isPanning) isDragging = false;
+});
+
+function startPan(clientX, clientY) {
+  isPanning = true;
+  isDragging = false;
+  panStartX = clientX;
+  panStartY = clientY;
+  panScrollLeft = gameViewport.scrollLeft;
+  panScrollTop = gameViewport.scrollTop;
+  gameViewport.classList.add('is-panning');
+}
+
+function movePan(clientX, clientY) {
+  if (!isPanning) return;
+  gameViewport.scrollLeft = panScrollLeft - (clientX - panStartX);
+  gameViewport.scrollTop = panScrollTop - (clientY - panStartY);
+}
+
+function endPan() {
+  if (!isPanning) return;
+  isPanning = false;
+  gameViewport.classList.remove('is-panning');
+}
+
+gameViewport.addEventListener('mousedown', e => {
+  if (paintMode !== 'pan' || e.button !== 0) return;
+  e.preventDefault();
+  startPan(e.clientX, e.clientY);
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  e.preventDefault();
+  movePan(e.clientX, e.clientY);
+});
+
+document.addEventListener('mouseup', () => {
+  endPan();
+  isDragging = false;
+});
+
+gameViewport.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinchStartDist = touchDistance(e.touches);
+    pinchStartZoom = boardZoom;
+    endPan();
+    return;
+  }
+  if (paintMode === 'pan' && e.touches.length === 1) {
+    e.preventDefault();
+    startPan(e.touches[0].clientX, e.touches[0].clientY);
+  }
+}, { passive: false });
+
+gameViewport.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchStartDist > 0) {
+    e.preventDefault();
+    setZoom(pinchStartZoom * (touchDistance(e.touches) / pinchStartDist));
+    return;
+  }
+  if (isPanning && e.touches.length === 1) {
+    e.preventDefault();
+    movePan(e.touches[0].clientX, e.touches[0].clientY);
+  }
+}, { passive: false });
+
+gameViewport.addEventListener('touchend', endPan);
+gameViewport.addEventListener('touchcancel', endPan);
 
 function touchDistance(touches) {
   const dx = touches[0].clientX - touches[1].clientX;
@@ -645,20 +794,6 @@ function touchDistance(touches) {
 let pinchStartDist = 0;
 let pinchStartZoom = 1;
 
-gameViewport.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) {
-    pinchStartDist = touchDistance(e.touches);
-    pinchStartZoom = boardZoom;
-  }
-}, { passive: true });
-
-gameViewport.addEventListener('touchmove', e => {
-  if (e.touches.length === 2 && pinchStartDist > 0) {
-    e.preventDefault();
-    setZoom(pinchStartZoom * (touchDistance(e.touches) / pinchStartDist));
-  }
-}, { passive: false });
-
 detectTouch();
 initTheme();
-initGame(true);
+showWelcome(false);
